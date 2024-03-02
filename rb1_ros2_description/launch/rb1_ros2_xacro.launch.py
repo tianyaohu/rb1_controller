@@ -53,11 +53,12 @@ def generate_launch_description():
         "rb1_ros2_description"), "xacro", robot_desc_file)
 
     robot_name_1 = "rb1_robot"
+
     rsp_robot1 = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='robot_state_publisher',
-        parameters=[{'use_sim_time': use_sim_time,
+        parameters=[{'frame_prefix': robot_name_1+'/', 'use_sim_time': use_sim_time,
                      'robot_description': ParameterValue(Command(['xacro ', robot_desc_path, ' robot_name:=', robot_name_1]), value_type=str)}],
         output="screen"
     )
@@ -68,7 +69,7 @@ def generate_launch_description():
         arguments=['-entity', robot_name_1, '-x', '0.0', '-y', '0.0', '-z', '0.0',
                    '-topic', '/robot_description']
     )
-
+    
     joint_state_broadcaster = Node(
         package="controller_manager",
         executable="spawner",
@@ -85,6 +86,14 @@ def generate_launch_description():
         ]
     )
 
+    rb1_elevator_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "rb1_elevator_controller", "-c", "/controller_manager",
+        ]
+    )
+
     return LaunchDescription([
         #When the 'spawn_robot1' exits, start 'joint_state_broadcaster'.
         RegisterEventHandler(
@@ -98,6 +107,13 @@ def generate_launch_description():
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster,
                 on_exit=[rb1_base_controller],
+            )
+        ),
+        #When 'joint_state_broadcaster' exits, start 'rb1_elevator_controller'.
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=joint_state_broadcaster,
+                on_exit=[rb1_elevator_controller],
             )
         ),
         gazebo,
